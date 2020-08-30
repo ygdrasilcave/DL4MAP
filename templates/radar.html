@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Project Log: Radar Chart</title>
+    <!--<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>
+    <style>
+      h1 {text-align: center;}
+      h2 {text-align: center;}
+      canvas { background: #f9f9f9; margin: 0; padding: 5px; display: block;
+      -moz-user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Digital Art Project: Radar Chart</h1>
+    <h2 id="dbt"></h2>
+    <h2 id="dataID"></h2>
+
+    <canvas id="projectChart" width="600" height="400"></canvas>
+
+
+    <script>
+      const TABLE_NAME_PREFIX = 'TB_project_';
+
+      function getParam(p) {
+        var params = location.search.substr(location.search.indexOf("?") + 1);
+        var val = "";
+        params = params.split("&");
+        for (var i = 0; i < params.length; i++) {
+          temp = params[i].split("=");
+          if ([temp[0]] == p) { val = temp[1]; }
+        }
+        return val;
+      }
+
+      window.addEventListener('load', setup);
+
+      async function setup() {
+        const data = await getData();
+        const ctx = document.getElementById('projectChart').getContext('2d');
+        const myChart = new Chart(ctx, data);
+      }
+
+      async function getData() {
+        let chartTitle = "";
+        let datasetLabel = [];
+        let countTotal = [];
+
+        const chartData = {
+          type:'radar',
+          data:{
+            labels: [],
+            datasets:[]
+          },
+          options:{
+            legend: {
+              labels: {
+                fontColor: "black",
+                //fontSize: 30
+                //defaultFontSize: 12
+              }
+            },
+            title: {
+              display: true,
+              text: chartTitle
+            },
+            scale: {
+              ticks: {
+                beginAtZero: true,
+                stepSize: 2
+              }
+            },
+            tooltips:{
+              callbacks: {
+                label: function(tooltipItem, data) {
+                    console.log(tooltipItem.datasetIndex)
+                    return datasetLabel[tooltipItem.datasetIndex]+': '+data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index]+'/'+countTotal[tooltipItem.datasetIndex];
+                }
+              }
+            }
+          }
+        };
+
+        const serverIP = getParam("serverIP");
+        const db = getParam("dbTableName");
+        const id = getParam("id");
+        var dbs = db.split(",");
+
+        if(dbs.length > 0 && dbs.length < 3){
+          for(var k =0; k < dbs.length; k++){
+            const response = await fetch("http://" + serverIP + "/json?tableName=" + dbs[k]);
+            var _inData = await response.json();
+
+            var value = [];
+            var labelIndex = [];
+            var counter = [];
+            countTotal[k] = 0;
+            
+            for(key in _inData){
+              if(_inData[key].modID == id){
+                value.push(_inData[key].modValue);
+                var _dl = _inData[key].modName + "-" + dbs[k];
+                if(datasetLabel.indexOf(_dl) == -1){
+                  datasetLabel.push(_dl);
+                }           
+              }
+            }
+            //console.log(value);
+            labelIndex = [...new Set(value)];
+            //console.log("label index")
+            //console.log(labelIndex);
+            const max = labelIndex.reduce( function (previous, current) { 
+              return previous > current ? previous:current;
+            });
+            const min = labelIndex.reduce( function (previous, current) { 
+              return previous > current ? current:previous;
+            });
+            //new label index
+            labelIndex = [];
+            for (var i=0; i<=(max-min); i++){
+              labelIndex[i] = String(i+parseInt(min));
+              counter[i] = '0';
+            }
+
+            //count value
+            for(var i=0; i<labelIndex.length; i++){
+              var count = 0;
+              for(var j=0; j<value.length; j++){
+                if(labelIndex[i] == value[j]){
+                  count++;
+                }
+              }
+              counter[i] = String(count);
+              labelIndex[i] = 'value_'+labelIndex[i];
+              countTotal[k] = countTotal[k]+count;
+            }
+            //console.log(labelIndex);
+            //console.log(counter);
+
+            //chartTitle = chartTitle + '<'+ datasetLabel + '> data.';
+
+            chartData.data.labels = labelIndex;
+            const _hue = k*60+240;
+            const _color = 'hsl('+ _hue +', 100%,';
+            const _datasets = {label: datasetLabel[k],
+                backgroundColor: _color + '60%, 30%)',
+                borderColor: _color + '60%, 80%)',
+                pointBackgroundColor: _color + '40%, 100%)',
+                data: counter,
+                //lineTension: 0.1,
+                pointRadius: 5
+               };
+
+            chartData.data.datasets.push(_datasets);
+          }
+        }
+
+        document.getElementById('dbt').innerHTML = 'current DB table name: ' + TABLE_NAME_PREFIX + dbs[0];
+        document.getElementById('dataID').innerHTML = 'current data ID: ' + id + ' ('+ datasetLabel+')';
+        
+        return chartData;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Project Log: Line Chart</title>
+    <!--<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>
+    <style>
+      h1, h2, h3 {text-align: center;}
+      canvas { background: #f9f9f9; margin: 0px; padding: 0px;}
+    </style>
+  </head>
+  <body>
+    <h1>Digital Art Project: Line Chart</h1>
+    <h2 id="dbt"></h2>
+    <h3><a id="radar" href="" target="_blank"></a></h3>
+    <canvas id="projectChart" width="400" height="150"></canvas>
+
+    <script>
+      const TABLE_NAME_PREFIX = 'TB_project_';
+      const lineSteppedID = ['3'];
+      const lineInterpolation = 0.05;
+
+      function getParam(p) {
+        var params = location.search.substr(location.search.indexOf("?") + 1);
+        var val = "";
+        params = params.split("&");
+        for (var i = 0; i < params.length; i++) {
+          temp = params[i].split("=");
+          if ([temp[0]] == p) { val = temp[1]; }
+        }
+        return val;
+      }
+
+      window.addEventListener('load', setup);
+
+      async function setup() {
+        const data = await getData();
+        const ctx = document.getElementById('projectChart').getContext('2d');
+        const myChart = new Chart(ctx, data);
+      }
+
+      async function getData() {
+        const serverIP = getParam("serverIP");
+        const db = getParam("dbTableName");
+        var dbs = db.split(",");
+        var inData = [];
+        if(dbs.length > 0 && dbs.length < 3){
+          for(var i =0; i < dbs.length; i++){
+            const response = await fetch("http://" + serverIP + "/json?tableName=" + dbs[i]);
+            var _inData = await response.json();
+            for(key in _inData){
+              if(i > 0){
+                _inData[key].modID = String(_inData[key].modID) + "-b";
+              }else{
+                _inData[key].modID = String(_inData[key].modID)
+              }
+            }
+            inData = inData.concat(_inData);
+          }
+        }
+        //console.log("DB Table name = " + db);
+
+        document.getElementById('dbt').innerHTML = 'current DB table name: ' + TABLE_NAME_PREFIX + dbs[0];
+        let radarChartIDs = [];
+        const radarCahrt_FirstID = 100;
+
+        let logTime = [];
+        let ids = [];
+        for(key in inData){
+          ids.push(inData[key].modID);
+          //logTime.push(inData[key].logTime);
+          const _tempX = inData[key].logTime.split(':');
+          var _xCord = "";
+          /*for(var t=0; t<_tempX.length; t++){
+            _xCord = _xCord+_tempX[t];
+          }*/
+          if(_tempX.length == 3){
+            const _h = parseInt(_tempX[0])*3600;
+            const _m = parseInt(_tempX[1])*60;
+            const _s = parseInt(_tempX[2]);
+            _xCord = _xCord+(_h+_m+_s);
+          }
+          logTime.push(_xCord.trim());
+        }
+        ids = [...new Set(ids)];
+
+        const chartData = {
+          type:'line',
+          data:{
+            labels: [],
+            datasets:[]
+          },
+          options:{
+            layout: {
+                 padding: {
+                    left: 15,
+                    right: 20,
+                    top: 20,
+                    bottom: 10
+                  }
+            },
+            scales: {
+                xAxes: [{
+                    type: 'linear',
+                    scaleLabel: {
+                      display: true,
+                      labelString: 'Seconds'
+                    },
+                    ticks: {
+                      stepSize: 300,
+                      //padding: 50
+                    }
+                }],
+                yAxes: [{
+                    scaleLabel: {
+                      display: true,
+                      labelString: 'Values'
+                    },
+                    ticks: {
+                      beginAtZero: false,
+                      //padding: 10
+                    }
+                }]
+            },
+            tooltips:{
+              callbacks: {
+                label: function(tooltipItem, data) {
+                    //return data.datasets[tooltipItem.datasetIndex].label + ': ' + data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index].y;
+                    function pad(n, width) {
+                      n = n + '';
+                      return n.length >= width ? n : new Array(width - n.length + 1).join('0') + n;
+                    }
+                    const time = data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index].x;
+                    const h = Math.floor(parseInt(time)/3600);
+                    const m = Math.floor(parseInt(time)/60)%60;
+                    const s = parseInt(time)%60;
+                    return pad(h,2)+':'+pad(m,2)+':'+pad(s,2)+',   value: '+data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index].y;
+                }
+              }
+            }
+          }
+        };
+
+        for (var i=0; i<ids.length; i++){
+          const hue_step = Math.floor(360/ids.length);
+          const _id = ids[i];
+          const _data = [];
+          const _schedOrEvt = [];
+          const _radius = [];
+          var _modName = "";
+          for(var j=0; j<inData.length; j++){
+            if(inData[j].modID == _id){
+              const _xy = {x:"", y:0};
+              _xy.x = logTime[j];
+              const testValue = inData[j].modValue;
+              if(!isNaN(testValue)){
+                if(testValue != "" && testValue != null && testValue != Infinity){
+                  _xy.y = parseFloat(testValue);
+                }else{
+                  _xy.y = NaN;
+                }
+              }else{
+                _xy.y = NaN;
+              }
+              //_xy.y = parseFloat(testValue);
+              _data.push(_xy);
+              _modName = inData[j].modName;
+              
+              if(inData[j].schedOrEvt=='sched'){
+                _schedOrEvt.push('circle');
+                _radius.push(3);
+              }else if(inData[j].schedOrEvt=='evt'){
+                _schedOrEvt.push('rectRot');
+                _radius.push(3.5);
+              }
+            }
+          }
+
+          var _stepped = false;
+          for(var l=0; l<lineSteppedID.length; l++){
+            if(_id == lineSteppedID[l] || _id == lineSteppedID[l] + "-b"){
+              _stepped = true;
+            }
+          }
+
+          //console.log(_schedOrEvt);
+          const _label = _modName+" (id: "+ _id+")";
+          //const _hue = Math.floor(Math.random() * 255);
+          const _hue = i*hue_step;
+          const _color = 'hsl('+ _hue +', 100%, 40%)'
+          const _datasets = {label: _label,
+              fill: false,
+              borderColor: _color,
+              backgroundColor: _color,
+              borderWidth: 1.5,
+              data: _data,
+              steppedLine: _stepped,
+              lineTension: lineInterpolation,
+              pointStyle: _schedOrEvt,
+              pointRadius: _radius
+             };
+
+          chartData.data.datasets.push(_datasets);
+
+
+          if(ids[i] >= radarCahrt_FirstID){
+            radarChartIDs.push(ids[i]);
+          }
+        }
+        
+        if(radarChartIDs.length > 0){
+          var _rids = 'Open the Radar Chart: id=';
+          radarChartIDs.sort(function(a, b) {
+            return a - b;
+          });
+          for(var i=0; i<radarChartIDs.length; i++){
+            if(i<radarChartIDs.length-1){
+              _rids = _rids + radarChartIDs[i]+', ';
+            }else{
+              _rids = _rids + radarChartIDs[i]
+            }
+          }
+          document.getElementById('radar').innerHTML = _rids;
+          document.getElementById('radar').href = "http://"+serverIP+"/radar?serverIP="+serverIP+"&dbTableName="+dbs[0]+"&id="+radarChartIDs[0];
+        }
+
+        logTime = [...new Set(logTime)];
+        chartData.data.labels = logTime;
+        return chartData;
+      }
+    </script>
+  </body>
+</html>

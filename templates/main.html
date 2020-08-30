@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<head>
+   <title>MAPDL Server</title>
+   <style>
+    table {
+      width: 100%;
+      border-top: 1px solid #168;
+      border-collapse: collapse;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th, td {
+      border-bottom: 1px solid #168;
+      padding: 10px;
+    }
+    h1, h2, h3, h4 {text-align: center; line-height: 100%;}
+    hr {width: 90%; margin-left: auto; margin-right: auto;}
+   </style>
+   <!--<meta http-equiv="refresh" content="60" >-->
+</head>
+
+<body>
+   <h1>Data Logging System for Digital Art Project</h1>
+   <h2>current DB table name: {{tableName}}</h2>
+   <hr>
+   <h3>Table List:</h3>
+   <pre><h4>{{tableList}}</h4></pre>
+   <hr>
+   <h3>{{info[0]}}</h3>
+   <h3>{{info[1]}}</h3>
+   <h3>{{info[2]}}</h3>
+   <hr>
+   <h3><a href="{{ips[0]}}" target="_self">Server IP Adress: {{ips[0]}}</a></h3>
+   <!--<h3><a href="{{ url_for('main') }}" target="_blank">Server IP Adress: {{ips[0]}}</a></h3>-->
+   <h3><a href="{{ips[1]}}" target="_blank">JSON Page: {{ips[1]}}</a></h3>
+   <h3><a href="{{ips[2]}}" target="_blank">Line Chart Page: {{ips[2]}}</a></h3>
+   <h3>Your IP Adress: {{ips[3]}}</h3>
+   <h5></h5>
+   <table>
+     <tr><th>logTime</th>
+     <th>schedOrEvt</th>
+     <th>modID</th>
+     <th>modName</th>
+     <th>modValue</th></tr>
+     {% for entry in readings %}
+        <tr><td>{{ entry.logTime }}</td>
+        <td>{{ entry.schedOrEvt }}</td>
+        <td>{{ entry.modID }}</td>
+        <td>{{ entry.modName }}</td>
+        <td>{{ entry.modValue }}</td></tr>
+     {% endfor %}
+   </table>
+</body>
+</html>
